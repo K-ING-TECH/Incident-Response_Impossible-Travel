@@ -34,9 +34,9 @@ SigninLogs
 
 
 ### NIST 800-161 Compliance:
-🔒 ID.AM-1: Inventory and tracking of user accounts.
+- ID.AM-1: Inventory and tracking of user accounts.
 
-🔒 PR.DS-5: Implementation of data loss prevention measures for suspicious activities.
+- PR.DS-5: Implementation of data loss prevention measures for suspicious activities.
 
 ## 🔍 Analysis - Case A: True Positive (Policy Violation)
 * The user logged in from multiple locations within travel distance but outside corporate policy for acceptable login behavior.
@@ -45,11 +45,11 @@ SigninLogs
 
 #### Immediate Actions Taken:
 
-🔐 Disabled the account in Active Directory (AD) and Azure Active Directory (AAD).
+- Disabled the account in Active Directory (AD) and Azure Active Directory (AAD).
 
-📩 Notified the user's manager regarding the policy violation.
+- Notified the user's manager regarding the policy violation.
 
-🔍 Inspected logs for pivoting or malicious activity using the following query:
+- Inspected logs for pivoting or malicious activity using the following query:
 
 ``` kusto
 AzureActivity
@@ -62,9 +62,9 @@ Investigate if the user has any legitimate reason for rapid location changes (e.
 Suggest updating the corporate policy to include geofencing for added security.
 
 ### NIST 800-161 Compliance:
-🔄 PR.IP-8: Development of response strategies for detected policy violations.
+- PR.IP-8: Development of response strategies for detected policy violations.
 
-🤝 RS.CO-2: Coordination with internal stakeholders upon detection.
+- RS.CO-2: Coordination with internal stakeholders upon detection.
 
 ### MITRE ATT&CK TTP Assessment:
 
@@ -73,7 +73,7 @@ Suggest updating the corporate policy to include geofencing for added security.
 
 ### Response Plan: Mitigation & Prevention:
 
-## 🛡️ Containment:
+## Containment:
 
 * Disable the user account across all systems.
 
@@ -81,7 +81,7 @@ Suggest updating the corporate policy to include geofencing for added security.
 
 * Isolate any affected endpoints to prevent lateral movement.
 
-## 🧹 Eradication:
+## Eradication:
 
 * Reset all credentials associated with the compromised account.
 
@@ -89,13 +89,13 @@ Suggest updating the corporate policy to include geofencing for added security.
 
 * Implement additional monitoring on high-value accounts for anomalous activity.
 
-## 🔄 Recovery:
+## Recovery:
 
 * Verify system integrity using endpoint detection and response (EDR) tools.
 
 * Conduct a full security audit.
 
-## 🚨 Prevention:
+## Prevention:
 
 * Enforce multi-factor authentication (MFA) for all remote connections.
 
@@ -103,7 +103,7 @@ Suggest updating the corporate policy to include geofencing for added security.
 
 * Regularly update and enforce conditional access policies based on user risk levels.
 
-# 🔍 Analysis - Case B: False Positive (Benign Activity)
+# Analysis - Case B: False Positive (Benign Activity)
 * The login locations were within acceptable distances and time frames.
 
 * The user's travel pattern appears consistent with expected behavior.
@@ -113,7 +113,7 @@ Suggest updating the corporate policy to include geofencing for added security.
 
 * No further action was taken as the activity falls within corporate policy.
 
-## ⚙️ Improving Impossible Travel Detection Rule (False Positive Reduction)
+## Improving Impossible Travel Detection Rule (False Positive Reduction)
 1. Exclude Known VPN IPs
 ``` kusto
 let KnownVPNs = dynamic(["203.0.113.10", "198.51.100.25"]);
@@ -170,9 +170,9 @@ Enforce stricter authentication for high-risk logins using Azure Conditional Acc
 
 ### NIST 800-161 Compliance:
 
-📊 DE.DP-4: Adjust detection processes to reduce false positives.
+- DE.DP-4: Adjust detection processes to reduce false positives.
 
-🔐 PR.AC-7: Enforce least privilege and conditional access policies.
+- PR.AC-7: Enforce least privilege and conditional access policies.
 
 ## Lessons Learned & Improvements
 
