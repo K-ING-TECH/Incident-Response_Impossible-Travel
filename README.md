@@ -1,181 +1,157 @@
-# Incident-Response_Impossible-Travel
-Azure Sentinel Incident Response Impossible Travel Alert (NIST 800-161 Compliant)
-
-# 🚨 Incident Response Report: Impossible Travel Alert (NIST 800-161 Compliant)
+# 🛡️ Incident Response Report: Impossible Travel Alert (NIST 800-61 Compliant)
 
 ---
 
-## 🛑 **Detection**
+## 1. Overview & Explanation
+A security alert was triggered in **Azure Sentinel** due to **“Impossible Travel”** activity on a user account. Impossible travel alerts typically arise when a single user attempts logins from geographically distant locations within a short timeframe—beyond realistic physical travel speed. Although such alerts can indicate **credential compromise**, they can also be triggered by legitimate situations (e.g., VPN usage).
 
-### **Incident Trigger**
-An alert was raised for **impossible travel** involving the following account:
+In this incident, multiple login attempts were detected for:
+f0da900fd11f524a8d5a31634870658f585d4f17fb5f147254b8a07dad50b7ae@company.com
 
-- **Account:** `f0da900fd11f524a8d5a31634870658f585d4f17fb5f147254b8a07dad50b7ae@company.com`
+Logins occurred within approximately **1.5 hours** from **Marcham (Oxfordshire)**, **Reading**, and **Haringey (Greater London)**. While all locations are in the UK, the rapid pattern of logins flagged Sentinel’s Impossible Travel rule.
 
-### **Observed Login Locations:**
-- 📍 Marcham, Oxfordshire, GB  
-- 📍 Reading, Reading, GB  
-- 📍 Haringey, Greater London, GB  
+Following **NIST 800-61** guidelines, the security team validated the alert, contained risks if necessary, analyzed whether the event represented malicious or benign behavior, and updated detection rules to reduce false positives going forward.
 
-### **Timeline of Events:**
-- The timestamps of the logins were **consistent with realistic travel times** (all within an hour and a half from each other).
+---
 
-### **Detection Query (KQL):**
+## 2. Detection & Alert Rule Creation
+### 2.1 Sentinel Alert Configuration
+**Alert Name**: “Impossible Travel Alert”  
+**Condition**: Detects a user logging in from distances/timeframes that violate corporate travel policy.  
+**Data Source**: **SigninLogs** within Azure Sentinel (Log Analytics).
+
 ```kusto
 let TimePeriodThreshold = timespan(7d); // Time range to look back
 SigninLogs
 | where UserPrincipalName == "f0da900fd11f524a8d5a31634870658f585d4f17fb5f147254b8a07dad50b7ae@company.com"
 | where TimeGenerated > ago(TimePeriodThreshold)
-| project TimeGenerated, UserPrincipalName, UserId, City = tostring(parse_json(LocationDetails).city), 
-         State = tostring(parse_json(LocationDetails).state), 
-         Country = tostring(parse_json(LocationDetails).countryOrRegion)
+| project TimeGenerated, UserPrincipalName, UserId, 
+          City = tostring(parse_json(LocationDetails).city), 
+          State = tostring(parse_json(LocationDetails).state), 
+          Country = tostring(parse_json(LocationDetails).countryOrRegion)
 | order by TimeGenerated desc
 ```
 
+Result: An incident was raised in Sentinel, alerting security staff that a user was potentially traveling or spoofed across multiple locations too quickly to be legitimate.
 
-### NIST 800-161 Compliance:
-- ID.AM-1: Inventory and tracking of user accounts.
+## 3. Incident Analysis
+### 3.1 Observed Login Locations & Timeline
+Locations:
 
-- PR.DS-5: Implementation of data loss prevention measures for suspicious activities.
+📍 Marcham, Oxfordshire, GB
 
-## 🔍 Analysis - Case A: True Positive (Policy Violation)
-* The user logged in from multiple locations within travel distance but outside corporate policy for acceptable login behavior.
+📍 Reading, Reading, GB
 
-* The rapid pattern of location changes indicates a potential policy violation.
+📍 Haringey, Greater London, GB
 
-#### Immediate Actions Taken:
+Time Window: Approximately 1.5 hours apart (Determined by Google Maps).
 
-- Disabled the account in Active Directory (AD) and Azure Active Directory (AAD).
+Despite being in the same country, the policy defines a threshold for normal vs. suspicious travel times. 
 
-- Notified the user's manager regarding the policy violation.
+Each sign-in was close enough to be plausible, yet triggered the rule meant to catch more extreme distance anomalies.
 
-- Inspected logs for pivoting or malicious activity using the following query:
+### 3.2 Case A: True Positive (Policy Violation)
+Findings: The user’s activity violated corporate sign-in policy for “acceptable travel.”
 
-``` kusto
+#### Immediate Actions:
+
+Disabled the user’s account in Active Directory (AD) and Azure AD.
+
+Notified the user’s manager of potential policy violation.
+
+Inspected logs for lateral movement or malicious pivoting:
+
+```
 AzureActivity
 | where tostring(parse_json(Claims)["http://schemas.microsoft.com/identity/claims/objectidentifier"]) == "<OiD>"
 ```
 
-#### Next Steps:
-Investigate if the user has any legitimate reason for rapid location changes (e.g., VPN usage, multi-location business travel).
+Next Steps:
 
-Suggest updating the corporate policy to include geofencing for added security.
+Determine if a legitimate reason existed (VPN usage, multi-site travel).
 
-### NIST 800-161 Compliance:
-- PR.IP-8: Development of response strategies for detected policy violations.
+Propose geofencing (IP-based restrictions) to align with corporate policy.
+## 3.3 Case B: False Positive (Benign Activity)
+Findings: Logins from legitimate, nearby locations—travel time was feasible and user’s job responsibilities required frequent local commuting.
 
-- RS.CO-2: Coordination with internal stakeholders upon detection.
+Resolution:
 
-### MITRE ATT&CK TTP Assessment:
+Alert deemed false positive; no further action was taken.
 
-**T1078: Valid Accounts –** Potential misuse of valid credentials for unauthorized access.
+Activity matched user’s known routine within corporate guidelines.
 
+### 3.4 Improving Impossible Travel Detection Rule
 
-### Response Plan: Mitigation & Prevention:
+Below are techniques to reduce false positives:
 
-## Containment:
+- Exclude Known VPN IPs
+  
+Filters out logins through the organization’s recognized VPN gateways.
 
-* Disable the user account across all systems.
+- Increase Distance Threshold
+  
+Adjust the maximum allowed distance for multiple sign-ins to better reflect user travel patterns.
 
-* Revoke all active sessions associated with the affected user.
+- Filter by Business Hours
+  
+Restrict detection to unusual times if corporate policy requires.
 
-* Isolate any affected endpoints to prevent lateral movement.
+- Exclude Specific Roles
+  
+Allows traveling executives or global admins to circumvent standard distance checks.
 
-## Eradication:
+- Historical Travel Pattern Exclusion
+  
+Compares logins against the user’s typical city pattern to avoid repeated false alerts.
 
-* Reset all credentials associated with the compromised account.
+- Conditional Access Integration
 
-* Audit user accounts for any unauthorized access.
+Enforce stricter authentication (MFA) for high-risk or suspicious sign-in attempts.
+## 4. Containment, Eradication & Recovery
+Depending on whether the alert was confirmed malicious (Case A) or benign (Case B), the following NIST 800-61 phases were applied:
 
-* Implement additional monitoring on high-value accounts for anomalous activity.
+### 4.1 Containment (If Malicious)
+- Disable the user’s account enterprise-wide.
+- Revoke active sessions to immediately stop suspicious activity.
+- Isolate any endpoints suspected of compromise to prevent lateral movement.
+### 4.2 Eradication
+- Reset credentials of the compromised account.
+- Audit all user accounts for unauthorized access or group membership changes.
+- Monitor high-value assets for follow-up infiltration attempts.
+### 4.3 Recovery
+- Verify system integrity (endpoint & cloud services) via EDR solutions.
+- Conduct a thorough security audit to confirm no remaining compromise.
+- Document any forensic or remediation actions for compliance.
 
-## Recovery:
+## 5. Post-Incident Activities
+#### Lessons Learned
+Review impossible travel detection thresholds regularly (e.g., refining allowed distances, recognized VPN IPs).
 
-* Verify system integrity using endpoint detection and response (EDR) tools.
+Streamline automatic responses for faster triage of real threats.
 
-* Conduct a full security audit.
+Assess user policies around multi-location sign-ins, especially for traveling or hybrid workforce.
 
-## Prevention:
+Policy Enhancements
 
-* Enforce multi-factor authentication (MFA) for all remote connections.
+Geo-Blocking/Geofencing for off-region logins.
 
-* Apply geo-blocking or geofencing to restrict logins to authorized regions.
+MFA Enforcement across all remote sessions.
 
-* Regularly update and enforce conditional access policies based on user risk levels.
+Conditional Access Policies that adapt sign-in rules based on user risk score, location, or device compliance.
 
-# Analysis - Case B: False Positive (Benign Activity)
-* The login locations were within acceptable distances and time frames.
+#### Incident Closure
+If malicious, ensure full scope and root cause analysis are completed.
 
-* The user's travel pattern appears consistent with expected behavior.
+If benign, label the alert as “false positive” for future reference.
 
-### Resolution:
-* The alert was deemed a false positive.
+## 6. Conclusion
+An Impossible Travel Alert triggered in Sentinel showed rapid sign-in events for a single user across multiple UK locations. Applying **NIST 800-61** guidelines, the security team investigated whether it was a true positive policy violation (requiring account disablement and manager notification) or a false positive benign scenario. Updated detection thresholds and conditional access policies were recommended to reduce future false alerts and expedite response to genuine malicious behavior.
 
-* No further action was taken as the activity falls within corporate policy.
+## 7. MITRE ATT&CK TTPs
+**T1078: Valid Accounts** - Potential misuse of valid credentials (if compromised) to log in from unusual locations.
 
-## Improving Impossible Travel Detection Rule (False Positive Reduction)
-1. Exclude Known VPN IPs
-``` kusto
-let KnownVPNs = dynamic(["203.0.113.10", "198.51.100.25"]);
-SigninLogs
-| where UserPrincipalName == "<user_email>"
-| where TimeGenerated > ago(7d)
-| where not(IPAddress in (KnownVPNs))
-```
+**PR.DS-5 (Data Protection)** – Detect & respond to suspicious account behaviors.
 
-2. Increase Distance Threshold
-``` kusto
-let DistanceThresholdKm = 100;
-SigninLogs
-| extend City = tostring(parse_json(LocationDetails).city),
-         Latitude = todouble(parse_json(LocationDetails).geoCoordinates.latitude),
-         Longitude = todouble(parse_json(LocationDetails).geoCoordinates.longitude)
-| sort by UserPrincipalName, TimeGenerated asc
-| extend PreviousLatitude = prev(Latitude),
-         PreviousLongitude = prev(Longitude),
-         PreviousTime = prev(TimeGenerated)
-| extend GeoDistanceKm = geo_distance_2points(Latitude, Longitude, PreviousLatitude, PreviousLongitude)
-| where GeoDistanceKm > DistanceThresholdKm
-```
+**PR.IP-8 (Response Plan)** – Strategies for handling policy violations.
 
-3. Filter by Business Hours (9 AM - 6 PM)
-```kusto
-| extend HourOfDay = datetime_part("hour", TimeGenerated)
-| where HourOfDay between (9 .. 18)
-```
-
-4. Exclude Specific Roles
-```kusto
-let ExcludedRoles = dynamic(["Global Administrator", "Traveling Executive"]);
-SigninLogs
-| where UserPrincipalName !in (ExcludedRoles)
-```
-
-5. Historical Travel Pattern Exclusion
-```kusto
-let HistoricalThreshold = 30d;
-let FrequentCities = 
-SigninLogs
-| where TimeGenerated > ago(HistoricalThreshold)
-| summarize LoginCount = count() by UserPrincipalName, City
-| where LoginCount > 10
-| project UserPrincipalName, City;
-
-SigninLogs
-| where City !in (FrequentCities)
-```
-
-6. Conditional Access Integration
-Enforce stricter authentication for high-risk logins using Azure Conditional Access policies.
-
-### NIST 800-161 Compliance:
-
-- DE.DP-4: Adjust detection processes to reduce false positives.
-
-- PR.AC-7: Enforce least privilege and conditional access policies.
-
-## Lessons Learned & Improvements
-
-* Regularly review detection rules to align with current corporate travel policies.
-
-* Automate response actions for true positives to reduce response time.
+**RS.CO-2 (Coordination)** – Involving stakeholders upon detection of suspicious activity.
